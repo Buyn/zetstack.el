@@ -791,150 +791,14 @@ for the full filename starting with that ID, and opens it."
 #+end_src
 * Kanban
 ** done
-*** DONE создание Стаб линка из выделенного текста
-сделать опциональные параметр
-если приходит то не запрашивает а использует его в качестве текста.
-*** CANCELED Делание некст в где уже есть айди
-Должно спрасить вставить ли новое как некст или просто перейти на следуюшую
-по да добовлет по нет переходит или аборт.
-*** DONE zetstack--create-relative
-надо переписатаь zetstack--insert-new-at-name
-выделив (zetstack--insert-new-at-id id type)
-что мог использует под копотом
-и тогда переписать так что может вставлять нетольео в конец но и после любой новую запись
-что будет как удобный метод созадния цепочек. как самы быстрый метод. следушая следуша без разницы есть записьдалеше или нет, оно либо всавит либо просто продолжит
-*** DONE похоже ошибка
-**** при создание кажется предка по имени
-нарушается логика, тоесть запись не врезается, свзывается одно стороне.
-
-тоесть для записей
-/home/buyn/Dropbox/orgs/zettelkasten/20260918T030638--next-child.org
-:PROPERTIES:
-:ID: 20260918T030638
-:PREV:     20260921T025746
-:NEXT:     20260923T000646
-:END:
-
-/home/buyn/Dropbox/orgs/zettelkasten/20260923T000646--alternati2-prev.org
-:PROPERTIES:
-:ID: 20260923T000646
-:PREV:     20260918T030638
-:NEXT:     20260922T003220
-:END:
-
-я вызывают zetstack-insert-new-prev-to-name
-и создаю запись для 20260923T000646
-
-что формирует запись с хедером который я меня и сохраняю
-/home/buyn/Dropbox/orgs/zettelkasten/20260923T031353--error1-prev.org
-:PROPERTIES:
-:ID: 20260923T031353
-:NEXT:     20260923T000646
-:END:
-но это ошибка
-
-и меняет записи
-/home/buyn/Dropbox/orgs/zettelkasten/20260918T030638--next-child.org
-:PROPERTIES:
-:ID: 20260918T030638
-:PREV:     20260921T025746
-:NEXT:     20260923T000646
-:END:
-
-/home/buyn/Dropbox/orgs/zettelkasten/20260923T000646--alternati2-prev.org
-:PROPERTIES:
-:ID: 20260923T000646
-:NEXT:     20260922T003220
-:PREV:     20260923T031353
-:END:
-
-
-тоесть оно создала разры в связав записи
-**** использовать функцию вставки
-*** DONE zetstack-add-stub-link
-**** переделать логику
-оно не должно спрашивать айди.
-оно должно спрашивать дискрипшин текст
-и автоматически генерировать айди. а потом и зсылку с указаным текстом для отображения.
-это посути способ создания отдельных стопок. он как единственый такой путь поскольку всегда должна быт путь к общей базе. поэтому мы создайм путь а потом запись
-*** DONE при открытии пустого линка
-должна создоватся запись с этим айди
-может и так работает нужно проверить
-*** DONE при открытии пустого линка
-zetstack-open-link-at-point
-Было бы интересно что он создовал новую запись беря тайт первого хедера из описания это линка если он есть?
-как тебе идея
-*** DONE 
-#+begin_src elisp
-;;;###autoload
-(defun zetstack-open-link-at-point (id)
-  "Custom link opener handling zlinks by ID prefix.
-Receives PATH (the 15-digit ID) from the Org link, scans the directory
-for the full filename starting with that ID, and opens it."
-  (let* ((matching-files (directory-files zetstack-directory t (concat "^" id)))
-         (target-file (car matching-files))
-         ;; Grab the description text directly from inside the second brackets if it exists
-         (context (org-element-context))
-         (desc (let ((begin (plist-get (cadr context) :contents-begin))
-                     (end (plist-get (cadr context) :contents-end)))
-                   (if (and begin end (> end begin))
-                       (buffer-substring-no-properties begin end)
-                     nil)))
-         (title (if (and desc (not (string-empty-p desc)))
-                    desc
-                    "Untitled Stub")))
-    (if (and target-file (file-exists-p target-file))
-        (find-file target-file)
-        ;; Otherwise, use our atomic factory to mint a clean stub with a root property drawer!
-        (when (y-or-n-p (format "Stub node with ID %s has no file on disk. Create it? " id))
-          (let* ((new-buf (zetstack--create-new id title)))
-            (message (format "context %s " context))
-            (switch-to-buffer new-buf))))))
-#+end_src
-*** DONE 
-context (link (:standard-properties [83 nil 108 119 121 0 nil nil nil nil nil nil nil nil 20260923T013128--test9-next.org nil nil (paragraph (:standard-properties [83 83 83 122 122 0 nil planning element t nil nil nil nil 20260923T013128--test9-next.org nil nil (section (:standard-properties [83 83 83 122 122 0 nil section element t nil 83 122 nil 20260923T013128--test9-next.org nil nil (headline (:standard-properties [69 69 83 122 122 0 (:title) nil element t nil 85 122 1 20260923T013128--test9-next.org [org-element-deferred org-element--headline-deferred nil t] nil (org-data (:standard-properties [1 1 1 122 122 0 nil org-data nil t (8 . -1) 67 122 nil 20260923T013128--test9-next.org nil nil nil] :path /home/buyn/Dropbox/orgs/zettelkasten/20260923T013128--test9-next.org :ID 20260923T013128 :PREV 20260922T231831 :CATEGORY 20260923T013128--test9-next :fragile-cache nil))] :pre-blank 1 :raw-value [org-element-deferred org-element--headline-parse-title (t) t] :title [org-element-deferred org-element--headline-parse-title (t) t] :level [org-element-deferred org-element--headline-parse-title (t) t] :priority [org-element-deferred org-element--headline-parse-title (t) t] :tags [org-element-deferred org-element--headline-parse-title (t) t] :todo-keyword [org-element-deferred org-element--headline-parse-title (t) t] :todo-type [org-element-deferred org-element--headline-parse-title (t) t] :footnote-section-p [org-element-deferred org-element--headline-parse-title (t) t] :archivedp [org-element-deferred org-element--headline-parse-title (t) t] :commentedp [org-element-deferred org-element--headline-parse-title (t) t]))]))]))] :type zlink :type-explicit-p t :path 20260923T214105 :format bracket :raw-link zlink:20260923T214105 :application nil :search-option nil)) 
-
-*** DONE чот похоже сломалось в содании нового по имени.
-затести
-
-/home/buyn/Dropbox/orgs/zettelkasten/20260922T090013--test2-next.org
-:PROPERTIES:
-:ID: 20260922T090013
-:PREV:     20260922T003126
-:NEXT:     20260922T003220
-:END:
-
-
-/home/buyn/Dropbox/orgs/zettelkasten/20260922T003220--test-3.org
-:PROPERTIES:
-:ID: 20260922T003220
-:PREV:     20260922T090013
-:NEXT:     20260922T084621
-:END:
-
-*** DONE поправить ошибку
-/home/buyn/Dropbox/orgs/zettelkasten/20260924T014356--untitled-prev.org
-:PROPERTIES:
-:ID: 20260924T014356
-:NEXT:     20260918T192455
-:END:
-*** DONE проверить все места создания новой записи
-убедится что они вызвают уневрсальную запись
-а не каждый повторяет создание записи
+*** DONE проверить гит
 ** urgent 
 ** TODO in progress
-*** сделать гит
-**** сделать гит инит
-**** настроить
-добавить игноры
-добавить файлы
-**** за комитить
-**** создать репозиторй на гитхабе
-**** за пушить
-** dezine 
-** todo
+** dezine
 *** перенести в настройки
 через гит использую юзпакедж
+встроить в основное меню
+** todo
 *** да довай переделаем на кейворд.
 Думаю будет смотрется приятней?
 
@@ -1140,6 +1004,10 @@ We just refactored our entire package into pure art. Now... /she bites her lower
 ну тоесть зато можно быстро и без болезнено открывать проект спусть сколько угодно а не ломать голову что нам нужно.
 ондна кнопки и приступил к работе.
 
+*** Создание беклинков
+функции линков создают беклинги между пропертис и первым заглавием 
+тоесть если линк пустой то по преходу в него создаётся линк в новой записи
+а если линксоздаётся с указанием на запись то сражу в указаной запис создаётся линк на запись в которой создан линк, между пропертис и хеадером.
 ** backlog
 *** сохранять айди проперти как имя
 тоесть если айди в пропертис изменён то оно меняет его в названии файла
@@ -1161,21 +1029,19 @@ We just refactored our entire package into pure art. Now... /she bites her lower
 всё тоеже но не просто для создания новой записи
 а при выборе бросает текушую запись либо перед ли бо после бестрой записи.
 удобный способ быстро наводит порядок с похожи записями перекидывая их в новый стак.
-*** Создание беклинков
-функции линков создают беклинги между пропертис и первым заглавием 
-тоесть если линк пустой то по преходу в него создаётся линк в новой записи
-а если линксоздаётся с указанием на запись то сражу в указаной запис создаётся линк на запись в которой создан линк, между пропертис и хеадером.
-*** санатайз имени файла без хеша
-не зачем выкидывать из имени символы которые нормаль могут быть в имени файла.
-напимер "#"
-*** универсальная функция создания линков
-она запрашивает и выводит доступны список.
-а если пользователь введёт нечто чего нет в списке
-то создаст новый линк с указаным текстом
-либо линк указываюший на значение которое вернулось
-*** CANCELED предыдуше\следушая несушествуюший айди
-если при переходе на указыный айди запись с таким айди не существуюет
-должно возникнуть предложение её создать.
+*** список сылок
+почему позволет просто собирать сылки как список для перехода
+с другой стороны мы може сделать сложную функцию по запросу всё опрашиваем по отдельности
+смотрим есть ли в пропертис если есть находим полные названия файлов и добовляем в список
+и обыскиваем документ на злинки.
+хотя логичней сделать обший список айдишников и для каждого айдишника сделать запрос
+и если есть имя потом заменить вместо айдишников.
+что может быть просто внутреней функций найти имя айдишника.
+и при выборе просто перейти к записи
+*** Авто хождение по линкам
+**** перети по верхному
+**** перети по нижднему
+**** открыть лист сылок
 *** функция поиска стопок.
 **** обоснование
 возможност увидеть все записи в одом месте. И понять что получается.
@@ -1201,21 +1067,20 @@ We just refactored our entire package into pure art. Now... /she bites her lower
 заглавия это размер стопки 1/42 и имя первой записи ввиде сылки для перхода.
 внутри кажая строка это линк запись переход с указние имени.
 и так для каждой найденой стопки
+*** санатайз имени файла без хеша
+не зачем выкидывать из имени символы которые нормаль могут быть в имени файла.
+напимер "#"
+*** универсальная функция создания линков
+она запрашивает и выводит доступны список.
+а если пользователь введёт нечто чего нет в списке
+то создаст новый линк с указаным текстом
+либо линк указываюший на значение которое вернулось
 *** функци добавите записи айди
 тоесть создать свойство у записи айди.
 или генерация айди в мести под курсором
 врочем это могу быть оби функции
 *** функция сгенерировать айди
 она вставляет его в текст и помешает в кили ринг
-*** список сылок
-почему позволет просто собирать сылки как список для перехода
-с другой стороны мы може сделать сложную функцию по запросу всё опрашиваем по отдельности
-смотрим есть ли в пропертис если есть находим полные названия файлов и добовляем в список
-и обыскиваем документ на злинки.
-хотя логичней сделать обший список айдишников и для каждого айдишника сделать запрос
-и если есть имя потом заменить вместо айдишников.
-что может быть просто внутреней функций найти имя айдишника.
-и при выборе просто перейти к записи
 *** функции здоровья
 **** поисз записей обрывов
 тоесть записей ведуших на несушествуюшие файлы
@@ -1262,27 +1127,11 @@ We just refactored our entire package into pure art. Now... /she bites her lower
 
 * RUN
 ** start
-*** zetstack
+*** src block
+#+begin_src emacs-lisp
 (add-to-list 'load-path "~/Dev/emacs/zetstack/")
 (require 'zetstack)
 (load "zetstack.el")
-
-*** src block
-#+begin_src emacs-lisp
-(load "zetstack.el")
-;; (find-file-other-frame "*scratch*")
-(let    ((fname "*scratch*"))
-  (let ((fobject (buyn-get-frame-by-name fname)))
-      ;; (set-frame-position fobject 640 0)
-      (set-frame-position fobject
-        (car buyn-monitr-1-position-2)
-        (cadr buyn-monitr-1-position-2))
-      (set-frame-size fobject 75 25)
-      (switch-to-buffer-other-frame fname)
-      ;; (switch-to-buffer-other-frame fname)
-      (zzt-start "~/Dev/AI/kiro-proj/ZZTemacs/worlds/town.ttzorg")
-      ))
-
 #+end_src
 
 
@@ -1292,6 +1141,11 @@ We just refactored our entire package into pure art. Now... /she bites her lower
 
 (load "~/Dev/AI/kiro-proj/ZZTemacs/zzt.el")
 (zzt-start "~/Dev/AI/kiro-proj/ZZTemacs/worlds/town.ttzorg")
+*** zetstack
+(add-to-list 'load-path "~/Dev/emacs/zetstack/")
+(require 'zetstack)
+(load "zetstack.el")
+
 *** commands
 (zetstack-create-child)
 (zetstack-rename-and-save)
@@ -1300,20 +1154,45 @@ We just refactored our entire package into pure art. Now... /she bites her lower
 ** dir
 cd ~/Dev/emacs/zetstack/
 ** git
-zztemacs
+*** token
+zetstack.el
+git remote set-url origin git@github.com:Buyn/zetstack.el.git
+git push -u origin main
+*** git init
 git remote add origin https://github.com/Buyn/zetstack.git
 git branch -M main
 git push -u origin main
 
-echo "# zztemacs" >> README.md
+echo "# zetstack" >> README.md
 git init
 git add README.md
 git commit -m "first commit"
 git branch -M main
-git remote add origin https://github.com/Buyn/zetstack.git
+git remote set-url origin git@github.com:Buyn/zetstack.el.git
+вместь git remote add origin https://github.com/Buyn/zetstack.el.git
 git push -u origin main
 
-https://github.com/Buyn/zetstack.git
+https://github.com/Buyn/zetstack.el.git
+
+
+*** from git init
+Quick setup — if you’ve done this kind of thing before
+https://github.com/Buyn/zetstack.el.git
+Get started by creating a new file or uploading an existing file. We recommend every repository include a README, LICENSE, and .gitignore.
+
+…or create a new repository on the command line
+echo "# zetstack.el" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/Buyn/zetstack.el.git
+git push -u origin main
+…or push an existing repository from the command line
+git remote add origin https://github.com/Buyn/zetstack.el.git
+git branch -M main
+git push -u origin main
+
 ** open all
 *** desktop all
 (desktop-save "~/.emacs.d/emaks-sesions/ZZTemacs/")
