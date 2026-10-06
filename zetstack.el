@@ -413,6 +413,18 @@ node immediately BEFORE it."
           (find-file filepath))))))
 
 ;;;###autoload
+(defun zetstack-open-in-frame-by-name ()
+  "Open a Zetstack node using Ivy, displaying clean titles without IDs."
+  (interactive)
+  (let* ((files (zetstack--files-alist)))
+    (if (null files)
+        (message "No valid Zetstack files found in directory!")
+      (let* ((selected (completing-read "Open Zetstack: " files nil t))
+             (filepath (cdr (assoc selected files))))
+        (when filepath
+          (find-file-other-frame filepath))))))
+
+;;;###autoload
 (defun zetstack-add-link ()
   "Select an existing Zetstack via Ivy and insert an ID link at point."
   (interactive)

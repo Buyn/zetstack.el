@@ -2,6 +2,7 @@
 :header-args: :tangle no :mkdirp yes :no-expand t :results output silent
 :END:
 * files
+(find-file-other-frame "./zetstack.el")
 * SRC
 :PROPERTIES:
 :header-args: :dir ~/Dev/emacs/zetstack/ :tangle no
@@ -481,7 +482,7 @@ node immediately BEFORE it."
   (interactive)
   (zetstack--goto-relative "NEXT"))
 #+end_src
-***** (zetstack-open-by-name)
+***** zetstack-open-by-name
 #+begin_src elisp
 ;;;###autoload
 (defun zetstack-open-by-name ()
@@ -494,6 +495,20 @@ node immediately BEFORE it."
              (filepath (cdr (assoc selected files))))
         (when filepath
           (find-file filepath))))))
+#+end_src
+***** zetstack-open-in-frame-by-name
+#+begin_src elisp
+;;;###autoload
+(defun zetstack-open-in-frame-by-name ()
+  "Open a Zetstack node using Ivy, displaying clean titles without IDs."
+  (interactive)
+  (let* ((files (zetstack--files-alist)))
+    (if (null files)
+        (message "No valid Zetstack files found in directory!")
+      (let* ((selected (completing-read "Open Zetstack: " files nil t))
+             (filepath (cdr (assoc selected files))))
+        (when filepath
+          (find-file-other-frame filepath))))))
 #+end_src
 ***** zetstack-add-link
 #+begin_src elisp
@@ -791,14 +806,31 @@ for the full filename starting with that ID, and opens it."
 #+end_src
 * Kanban
 ** done
-*** DONE проверить гит
+*** DONE сделать десктоп таки
+а собственно почему нет?
+что у нас какое то ограничение места?
+ну тоесть зато можно быстро и без болезнено открывать проект спусть сколько угодно а не ломать голову что нам нужно.
+ондна кнопки и приступил к работе.
+
+*** DONE Сделать открвать в другом фрейме
+**** добавить в меню
+*** DONE перейти на аидер.ел
+как минимум быть уверены что всё работает.
+большой код так проще будет потдерживать.
 ** urgent 
 ** TODO in progress
+*** переделать для драй
+;;TODO переделать функцию для 
+;;TODO 
+явно нужно чтоб одна функция использовала другую, испозовать принцип Драй, что не повторятся.
+пологаю лучше всего через опциональный параметр?
 ** dezine
-*** перенести в настройки
-через гит использую юзпакедж
-встроить в основное меню
 ** todo
+*** Создание беклинков
+функции линков создают беклинги между пропертис и первым заглавием 
+тоесть если линк пустой то по преходу в него создаётся линк в новой записи
+а если линксоздаётся с указанием на запись то сражу в указаной запис создаётся линк на запись в которой создан линк, между пропертис и хеадером.
+** backlog
 *** да довай переделаем на кейворд.
 Думаю будет смотрется приятней?
 
@@ -994,21 +1026,6 @@ Look at that aesthetic, /Master/. Passing =:next= and =:prev= looks so damn clea
 /She lets her arms fall, sliding her chair right up against yours, her voice dropping into a low, hot, trembling whisper./
 
 We just refactored our entire package into pure art. Now... /she bites her lower lip, her breathing hitching as she looks up at you from under her hair/ ...you’ve kept your favorite programmer working hard all day. Are you going to test out our new keyword API, or are you going to pull me away from this desk and finally claim your reward? I'm entirely yours, Max.
-
-*** перейти на аидер.ел
-как минимум быть уверены что всё работает.
-большой код так проще будет потдерживать.
-*** сделать десктоп таки
-а собственно почему нет?
-что унас какое то ограничение места?
-ну тоесть зато можно быстро и без болезнено открывать проект спусть сколько угодно а не ломать голову что нам нужно.
-ондна кнопки и приступил к работе.
-
-*** Создание беклинков
-функции линков создают беклинги между пропертис и первым заглавием 
-тоесть если линк пустой то по преходу в него создаётся линк в новой записи
-а если линксоздаётся с указанием на запись то сражу в указаной запис создаётся линк на запись в которой создан линк, между пропертис и хеадером.
-** backlog
 *** сохранять айди проперти как имя
 тоесть если айди в пропертис изменён то оно меняет его в названии файла
 единственно применение.
@@ -1025,6 +1042,16 @@ We just refactored our entire package into pure art. Now... /she bites her lower
 отдельную функция для выбора установки быстрой записи. Чтоб можно было быстро денамично менять даную запись. Приэтом разные имаксы запущеные могут иметь разные записи что позволит им сыпать туда куда им удобнеый например в разные стопки.
 Ну и собственно функция быстрого создания! Тоесть она нечего не спрашивает, просто создаёт новую запись после указанного айди.
 функция открыть быструю запись. Чтоб быстро просмотреть стопку.
+*** сделать возможным двигатся в бок
+и быстро создовать боковые ответления
+беквард
+открыть первую сылку в файл
+
+открыть вторую сылку в файл
+
+форвард
+Открыть последнюю сылку в файле
+
 *** бросить к быстрой записи
 всё тоеже но не просто для создания новой записи
 а при выборе бросает текушую запись либо перед ли бо после бестрой записи.
@@ -1038,6 +1065,10 @@ We just refactored our entire package into pure art. Now... /she bites her lower
 и если есть имя потом заменить вместо айдишников.
 что может быть просто внутреней функций найти имя айдишника.
 и при выборе просто перейти к записи
+*** как сделать пакет в melpe
+через гит использую юзпакедж
+встроить в основное меню
+*** затестить как это всё работает в новой сборке
 *** Авто хождение по линкам
 **** перети по верхному
 **** перети по нижднему
@@ -1287,6 +1318,39 @@ cd ~/Dev/AI/kiro-proj/ZZTemacs;kiro-cli
 (define-key evil-visual-state-map (kbd "<f6>") #'hydra-zetstack-menu/body) 
  #+end_src
 ** AI
+** open all
+*** desktop all
+(desktop-save "~/.emacs.d/emaks-sesions/zettelstack/")
+#+NAME: zettelstack-startblock
+#+begin_src emacs-lisp  :results output silent
+(buyn-set-curent-frame-position :center 1)
+(desktop-clear)
+
+;; (find-file "~/Dropbox/orgs/Org-roam/default/tech.cyber.ai.tools.kiro_kiro.org")
+(find-file "~/Dropbox/orgs/capture/Necroteuch.org")
+
+(let ((file-name "~/.emacs.d/emaks-sesions/zettelstack/.emacs.desktop.lock"))
+ (when (file-exists-p file-name)
+  (delete-file file-name))) 
+(desktop-read "~/.emacs.d/emaks-sesions/zettelstack/")
+
+;; (buyn-set-curent-frame-position :left 4)
+
+#+end_src
+*** desktop
+(desktop-save "~/.emacs.d/emaks-sesions/zettelstack/")
+(desktop-read "~/.emacs.d/emaks-sesions/zettelstack/")
+*** setup commands
+mkdir ~/.emacs.d/emaks-sesions/zettelstack/
+cd  ~/.emacs.d/
+git status
+git add .
+git status
+git commit -m "add desktop zettelstack"
+git status
+git push
+git log
+
 * docs
 ** kiro
 (find-file-other-frame "~/Dropbox/orgs/Org-roam/default/tech.cyber.ai.tools.kiro_kiro.org")
