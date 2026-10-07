@@ -308,6 +308,16 @@ Zettel node using =zetstack--create-new=, and surgically splice it
             (message "Successfully spawned, wired, and spliced new node [%s] %s [%s]." 
                      timestamp (if is-next "after" "before") target-id)))))))
 
+(defun zetstack--open-file (open-fn)
+  "Generic helper to open a Zetstack node using OPEN-FN via Ivy."
+  (let* ((files (zetstack--files-alist)))
+    (if (null files)
+        (message "No valid Zetstack files found in directory!")
+      (let* ((selected (completing-read "Open Zetstack: " files nil t))
+             (filepath (cdr (assoc selected files))))
+        (when filepath
+          (funcall open-fn filepath))))))
+
 ;;;###autoload
 (defun zetstack-create-next ()
   "Create a new Zettel node linked as a next of the current stack node."
@@ -404,25 +414,13 @@ node immediately BEFORE it."
 (defun zetstack-open-by-name ()
   "Open a Zetstack node using Ivy, displaying clean titles without IDs."
   (interactive)
-  (let* ((files (zetstack--files-alist)))
-    (if (null files)
-        (message "No valid Zetstack files found in directory!")
-      (let* ((selected (completing-read "Open Zetstack: " files nil t))
-             (filepath (cdr (assoc selected files))))
-        (when filepath
-          (find-file filepath))))))
+  (zetstack--open-file #'find-file))
 
 ;;;###autoload
 (defun zetstack-open-in-frame-by-name ()
-  "Open a Zetstack node using Ivy, displaying clean titles without IDs."
+  "Open a Zetstack node in a new frame using Ivy, displaying clean titles without IDs."
   (interactive)
-  (let* ((files (zetstack--files-alist)))
-    (if (null files)
-        (message "No valid Zetstack files found in directory!")
-      (let* ((selected (completing-read "Open Zetstack: " files nil t))
-             (filepath (cdr (assoc selected files))))
-        (when filepath
-          (find-file-other-frame filepath))))))
+  (zetstack--open-file #'find-file-other-frame))
 
 ;;;###autoload
 (defun zetstack-add-link ()
