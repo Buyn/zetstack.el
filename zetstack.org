@@ -401,6 +401,19 @@ The link text (description) is automatically derived from the source card's clea
           (insert (format "[[zlink:%s][Backlink: %s]]\n" source-id source-title))
           (save-buffer))))))
 #+end_src
+***** zetstack--extract-all-zlinks-in-buffer
+#+begin_src elisp
+(defun zetstack--extract-all-zlinks-in-buffer ()
+  "Extract all target IDs from `zlinks` present in the current buffer, in order of appearance."
+  (let (ids)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "zlink:\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" nil t)
+        (let ((id (match-string 1)))
+          (unless (member id ids)
+            (push id ids)))))
+    (nreverse ids)))
+#+end_src
 **** autoload functions
 ***** zetstack-create-next
 #+begin_src elisp
@@ -596,6 +609,61 @@ and inserts a backlink from the calling note if applicable."
               (when source-id
                 (zetstack--insert-backlink id source-id))
               (message "Minted stub node [%s] with title: %s and backlink." id title)))))))
+#+end_src
+***** zetstack-go-deeper
+#+begin_src elisp
+;;;###autoload
+(defun zetstack-go-deeper ()
+  "Go deeper into the note stack by opening the LAST zlink found in the current buffer."
+  (interactive)
+  (let* ((ids (zetstack--extract-all-zlinks-in-buffer))
+         (target-id (car (last ids))))
+    (if target-id
+        (let ((target-file (zetstack--find-file-by-id target-id)))
+          (if target-file
+              (find-file target-file)
+              (message "Target file for ID %s does not exist on disk." target-id)))
+        (message "No zlinks found in the current buffer."))))
+#+end_src
+***** zetstack-go-up
+#+begin_src elisp
+;;;###autoload
+(defun zetstack-go-up ()
+  "Go up the note stack by opening the FIRST zlink found in the current buffer."
+  (interactive)
+  (let* ((ids (zetstack--extract-all-zlinks-in-buffer))
+         (target-id (car ids)))
+    (if target-id
+        (let ((target-file (zetstack--find-file-by-id target-id)))
+          (if target-file
+              (find-file target-file)
+              (message "Target file for ID %s does not exist on disk." target-id)))
+        (message "No zlinks found in the current buffer."))))
+#+end_src
+***** zetstack-goto-link-by-name
+#+begin_src elisp
+;;;###autoload
+(defun zetstack-goto-link-by-name ()
+  "Extract all zlinks in the current buffer, present their clean titles 
+via Ivy, and jump to the selected Zetstack note."
+  (interactive)
+  (let* ((ids (zetstack--extract-all-zlinks-in-buffer)))
+    (if (null ids)
+        (message "No zlinks found in the current buffer.")
+        ;; Build an alist of (Clean Title . FilePath) for the extracted IDs
+        (let* ((link-choices
+                (delq nil
+                      (mapcar (lambda (id)
+                                (let ((filepath (zetstack--find-file-by-id id)))
+                                  (when filepath
+                                    (cons (zetstack--get-clean-title filepath) filepath))))
+                              ids))))
+        (if (null link-choices)
+            (message "Found zlinks, but none of their target files exist on disk.")
+            (let* ((selected (completing-read "Go to linked Zetstack: " link-choices nil t))
+                  (target-filepath (cdr (assoc selected link-choices))))
+              (when target-filepath
+                (find-file target-filepath))))))))
 #+end_src
 ***** zetstack-remove-current-file
 #+begin_src elisp
@@ -894,9 +962,7 @@ for the full filename starting with that ID, and opens it."
 
 понять как 
 и проверить что работает
-** urgent 
-** TODO in progress
-*** Создание беклинков
+*** DONE Создание беклинков
 **** описание
 функции линков создают беклинги между пропертис и первым заглавием.
 тоесть если линк пустой то по преходу в него создаётся линк в новой записи
@@ -907,9 +973,7 @@ for the full filename starting with that ID, and opens it."
 я проверил zetstack--insert-backlink работает как надо
 
 insert: Symbol’s value as variable is void: target-id
-** dezine
-** todo
-*** сделать возможным двигатся в бок
+*** DONE сделать возможным двигатся в бок
 и быстро перемешатся в боковые ответления
 беквард
 открыть первую сылку в файл
@@ -930,6 +994,49 @@ Up всплывать подыматся назад
 ***** перети по верхному
 ***** перети по нижднему
 ***** открыть лист сылок
+*** DONE Добавить две функции
+Deeper идти глубже погружатся
+  Открыть последнюю зсылку в файле
+
+Up всплывать подыматся назад
+  открыть первую зсылку в файле
+*** DONE исправить
+No zlinks found in the current buffer.
+You can run the command ‘zetstack-go-deeper’ with M-x z-d
+No zlinks found in the current buffer.
+
+#+begin_src elisp
+(defun zetstack--extract-all-zlinks-in-buffer ()
+  "Extract all target IDs from `zlinks` present in the current buffer, in order of appearance."
+  (let (ids)
+    (save-excursion
+      (goto-char (point-min))
+      ;; More relaxed regex to safely capture the 15-digit ID after zlink:
+      (while (re-search-forward "zlink:\\([0-9]\\{15\\}\\)" nil t)
+        (let ((id (match-string 1)))
+          (unless (member id ids)
+            (push id ids)))))
+    (nreverse ids)))
+#+end_src
+
+** urgent 
+** TODO in progress
+*** список сылок
+да неплохо
+былобы интересно использовать функцию zetstack--extract-all-zlinks-in-buffer
+чтоб создать спосок из "Описаний из линка"+"название из файла" в иве тоесть только названия без айди.
+и выбрав нужную сылку перейти в этот фаил
+** dezine
+*** список сылок
+почему позволет просто собирать сылки как список для перехода
+с другой стороны мы може сделать сложную функцию по запросу всё опрашиваем по отдельности
+смотрим есть ли в пропертис если есть находим полные названия файлов и добовляем в список
+и обыскиваем документ на злинки.
+хотя логичней сделать обший список айдишников и для каждого айдишника сделать запрос
+и если есть имя потом заменить вместо айдишников.
+что может быть просто внутреней функций найти имя айдишника.
+и при выборе просто перейти к записи
+** todo
 *** затестить как это всё работает в новой сборке
 ** backlog
 *** универсальная функция создания линков
@@ -1177,15 +1284,6 @@ We just refactored our entire package into pure art. Now... /she bites her lower
 всё тоеже но не просто для создания новой записи
 а при выборе бросает текушую запись либо перед ли бо после бестрой записи.
 удобный способ быстро наводит порядок с похожи записями перекидывая их в новый стак.
-*** список сылок
-почему позволет просто собирать сылки как список для перехода
-с другой стороны мы може сделать сложную функцию по запросу всё опрашиваем по отдельности
-смотрим есть ли в пропертис если есть находим полные названия файлов и добовляем в список
-и обыскиваем документ на злинки.
-хотя логичней сделать обший список айдишников и для каждого айдишника сделать запрос
-и если есть имя потом заменить вместо айдишников.
-что может быть просто внутреней функций найти имя айдишника.
-и при выборе просто перейти к записи
 *** как сделать пакет в melpe
 через гит использую юзпакедж
 встроить в основное меню

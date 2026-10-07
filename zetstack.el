@@ -338,6 +338,17 @@ The link text (description) is automatically derived from the source card's clea
           (insert (format "[[zlink:%s][Backlink: %s]]\n" source-id source-title))
           (save-buffer))))))
 
+(defun zetstack--extract-all-zlinks-in-buffer ()
+  "Extract all target IDs from `zlinks` present in the current buffer, in order of appearance."
+  (let (ids)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "zlink:\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" nil t)
+        (let ((id (match-string 1)))
+          (unless (member id ids)
+            (push id ids)))))
+    (nreverse ids)))
+
 ;;;###autoload
 (defun zetstack-create-next ()
   "Create a new Zettel node linked as a next of the current stack node."
@@ -500,6 +511,32 @@ and inserts a backlink from the calling note if applicable."
               (when source-id
                 (zetstack--insert-backlink id source-id))
               (message "Minted stub node [%s] with title: %s and backlink." id title)))))))
+
+;;;###autoload
+(defun zetstack-go-deeper ()
+  "Go deeper into the note stack by opening the LAST zlink found in the current buffer."
+  (interactive)
+  (let* ((ids (zetstack--extract-all-zlinks-in-buffer))
+         (target-id (car (last ids))))
+    (if target-id
+        (let ((target-file (zetstack--find-file-by-id target-id)))
+          (if target-file
+              (find-file target-file)
+              (message "Target file for ID %s does not exist on disk." target-id)))
+        (message "No zlinks found in the current buffer."))))
+
+;;;###autoload
+(defun zetstack-go-up ()
+  "Go up the note stack by opening the FIRST zlink found in the current buffer."
+  (interactive)
+  (let* ((ids (zetstack--extract-all-zlinks-in-buffer))
+         (target-id (car ids)))
+    (if target-id
+        (let ((target-file (zetstack--find-file-by-id target-id)))
+          (if target-file
+              (find-file target-file)
+              (message "Target file for ID %s does not exist on disk." target-id)))
+        (message "No zlinks found in the current buffer."))))
 
 ;;;###autoload
 (defun zetstack-remove-current-file ()
