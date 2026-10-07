@@ -539,6 +539,29 @@ and inserts a backlink from the calling note if applicable."
         (message "No zlinks found in the current buffer."))))
 
 ;;;###autoload
+(defun zetstack-goto-link-by-name ()
+  "Extract all zlinks in the current buffer, present their clean titles 
+via Ivy, and jump to the selected Zetstack note."
+  (interactive)
+  (let* ((ids (zetstack--extract-all-zlinks-in-buffer)))
+    (if (null ids)
+        (message "No zlinks found in the current buffer.")
+        ;; Build an alist of (Clean Title . FilePath) for the extracted IDs
+        (let* ((link-choices
+                (delq nil
+                      (mapcar (lambda (id)
+                                (let ((filepath (zetstack--find-file-by-id id)))
+                                  (when filepath
+                                    (cons (zetstack--get-clean-title filepath) filepath))))
+                              ids))))
+        (if (null link-choices)
+            (message "Found zlinks, but none of their target files exist on disk.")
+            (let* ((selected (completing-read "Go to linked Zetstack: " link-choices nil t))
+                  (target-filepath (cdr (assoc selected link-choices))))
+              (when target-filepath
+                (find-file target-filepath))))))))
+
+;;;###autoload
 (defun zetstack-remove-current-file ()
   "Prompt user, heal the Zettel stack pointers, delete the underlying file,
 and kill the current buffer."
