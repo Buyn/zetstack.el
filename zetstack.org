@@ -379,6 +379,28 @@ Zettel node using =zetstack--create-new=, and surgically splice it
         (when filepath
           (funcall open-fn filepath))))))
 #+end_src
+***** zetstack--insert-backlink
+#+begin_src elisp
+(defun zetstack--insert-backlink (target-id source-id)
+  "Insert a zlink backlink pointing to SOURCE-ID inside the card identified by TARGET-ID.
+The link text (description) is automatically derived from the source card's clean title."
+  (let* ((source-file (zetstack--find-file-by-id source-id))
+         (target-file (zetstack--find-file-by-id target-id))
+         (source-title (if source-file
+                           (zetstack--get-clean-title source-file)
+                           "Untitled")))
+    (when target-file
+      (with-current-buffer (find-file-noselect target-file)
+        (save-excursion
+          (goto-char (point-min))
+          ;; Jump past property drawer if it exists, otherwise start at top
+          (if (re-search-forward "^:END:" nil t)
+              (forward-line 1)
+              (goto-char (point-min)))
+          ;; Insert the backlink zlink right before the first headline
+          (insert (format "[[zlink:%s][Backlink: %s]]\n" source-id source-title))
+          (save-buffer))))))
+#+end_src
 **** autoload functions
 ***** zetstack-create-next
 #+begin_src elisp
@@ -514,17 +536,25 @@ node immediately BEFORE it."
 #+begin_src elisp
 ;;;###autoload
 (defun zetstack-add-link ()
-  "Select an existing Zetstack via Ivy and insert an ID link at point."
+  "Select an existing Zetstack via Ivy, insert an ID link at point,
+and automatically create a reciprocal backlink in the target card."
   (interactive)
-  (let* ((files (zetstack--files-alist)))
+  (let* ((files (zetstack--files-alist))
+         (source-id (zetstack--current-id)))
     (if (null files)
         (message "No Zetstack files found in directory!")
       (let* ((selected (completing-read "Link Zetstack: " files nil t))
              (filepath (cdr (assoc selected files))))
         (when filepath
-          (let ((id (zetstack--extract-id-from-file filepath)))
-            (if id
-                (insert (format "[[zlink:%s][%s]]" id selected))
+          (let ((target-id (zetstack--extract-id-from-file filepath)))
+            (if target-id
+                (progn
+                  ;; 1. Insert forward link at point in current buffer
+                  (insert (format "[[zlink:%s][%s]]" target-id selected))
+                  ;; 2. Create reciprocal backlink if we have a valid source ID
+                  (when source-id
+                    (zetstack--insert-backlink target-id source-id))
+                  (message "Linked to [%s] and created backlink." target-id))
               (message "Error: Could not resolve a valid 15-digit ID for file: %s" filepath))))))))
 #+end_src
 ***** zetstack-add-stub-link
@@ -538,7 +568,7 @@ Automatically mints a 15-digit timestamp ID and formats a clean zlink."
   (let* ((desc (or description (read-string "Enter Stub Description: ")))
          (timestamp (format-time-string "%Y%m%dT%H%M%S"))
          (clean-desc (replace-regexp-in-string "[^a-zA-Z0-9-_]+" "-" (string-trim desc))))
-    (insert (format "[[zlink:%s][Stub: %s]]" timestamp desc))
+    (insert (format "[[zlink:%s][%s]]" timestamp desc))
     (message "Minted gateway stub ID [%s] with description: %s" timestamp desc)))
 #+end_src
 ***** zetstack-open-link-at-point
@@ -547,20 +577,25 @@ Automatically mints a 15-digit timestamp ID and formats a clean zlink."
 (defun zetstack-open-link-at-point (id)
   "Custom link opener handling zlinks by ID prefix.
 Scans the directory for the full filename starting with ID, and opens it.
-If missing, extracts the link's description text directly from point."
+If missing, extracts the link's description text, creates the file,
+and inserts a backlink from the calling note if applicable."
   (let* ((matching-files (directory-files zetstack-directory t (concat "^" id)))
-         (target-file (car matching-files)))
+         (target-file (car matching-files))
+         (source-id (zetstack--current-id)))
     (if (and target-file (file-exists-p target-file))
         (find-file target-file)
-      ;; Extract description directly from the current line's zlink syntax
-      (let* ((line-text (thing-at-point 'line t))
-             (title (if (and line-text (string-match (format "\\[\\[zlink:%s\\]\\[\\([^]]+\\)\\]\\]" id) line-text))
-                        (match-string 1 line-text)
-                      "Untitled Stub")))
-        (when (y-or-n-p (format "Stub node [%s] ('%s') has no file on disk. Create it? " id title))
-          (let* ((new-buf (zetstack--create-new id title)))
-            (switch-to-buffer new-buf)
-            (message "Minted stub node [%s] with title: %s" id title)))))))
+        ;; Extract description directly from the current line's zlink syntax
+        (let* ((line-text (thing-at-point 'line t))
+              (title (if (and line-text (string-match (format "\\[\\[zlink:%s\\]\\[\\([^]]+\\)\\]\\]" id) line-text))
+                          (match-string 1 line-text)
+                        "Untitled Stub")))
+          (when (y-or-n-p (format "Stub node [%s] ('%s') has no file on disk. Create it? " id title))
+            (let* ((new-buf (zetstack--create-new id title)))
+              (switch-to-buffer new-buf)
+              ;; If created from another note, invoke the backlink creator
+              (when source-id
+                (zetstack--insert-backlink id source-id))
+              (message "Minted stub node [%s] with title: %s and backlink." id title)))))))
 #+end_src
 ***** zetstack-remove-current-file
 #+begin_src elisp
@@ -600,6 +635,46 @@ and kill the current buffer."
 :header-args: :tangle no
 :END:
 ** 
+*** 
+(defun zetstack-add-link ()
+  "Select an existing Zetstack via Ivy and insert an ID link at point."
+  (interactive)
+  (let* ((files (zetstack--files-alist)))
+    (if (null files)
+        (message "No Zetstack files found in directory!")
+      (let* ((selected (completing-read "Link Zetstack: " files nil t))
+             (filepath (cdr (assoc selected files))))
+        (when filepath
+          (let ((id (zetstack--extract-id-from-file filepath)))
+            (if id
+                (progn
+                  ;; 1. Insert forward link at point in current buffer
+                  (insert (format "[[zlink:%s][🠒 %s]]" target-id selected))
+                  ;; 2. Create reciprocal backlink if we have a valid source ID
+                  (when source-id
+                    (zetstack--insert-backlink target-id source-id))
+                  (message "Linked to [%s] and created backlink." target-id))
+                (message "Error: Could not resolve a valid 15-digit ID for file: %s" filepath))))))))
+
+(insert (format "[[zlink:%s][%s]]" id selected))
+
+(defun zetstack-open-link-at-point (id)
+  "Custom link opener handling zlinks by ID prefix.
+Scans the directory for the full filename starting with ID, and opens it.
+If missing, extracts the link's description text directly from point."
+  (let* ((matching-files (directory-files zetstack-directory t (concat "^" id)))
+         (target-file (car matching-files)))
+    (if (and target-file (file-exists-p target-file))
+        (find-file target-file)
+        ;; Extract description directly from the current line's zlink syntax
+        (let* ((line-text (thing-at-point 'line t))
+              (title (if (and line-text (string-match (format "\\[\\[zlink:%s\\]\\[\\([^]]+\\)\\]\\]" id) line-text))
+                          (match-string 1 line-text)
+                        "Untitled Stub")))
+          (when (y-or-n-p (format "Stub node [%s] ('%s') has no file on disk. Create it? " id title))
+            (let* ((new-buf (zetstack--create-new id title)))
+                (switch-to-buffer new-buf)
+                (message "Minted stub node [%s] with title: %s" id title)))))))
 *** 
 #+begin_src elisp
 (defun zetstack--insert-current-at-id (relation-type target-id)
@@ -812,21 +887,28 @@ for the full filename starting with that ID, and opens it."
 
 как предложишь зарефакторить функции zetstack-open-in-frame-by-name zetstack-open-by-name
 
-** urgent 
-*** Обновить с гита
+*** DONE Обновить с гита
 подскажи как мне для пакета установлено через страйте в имаксе, сказать чтоб он скачал новую версию. И установил?
 
 (straight-pull-package "zetstack")
 
 понять как 
 и проверить что работает
+** urgent 
 ** TODO in progress
-** dezine
-** todo
 *** Создание беклинков
-функции линков создают беклинги между пропертис и первым заглавием 
+**** описание
+функции линков создают беклинги между пропертис и первым заглавием.
 тоесть если линк пустой то по преходу в него создаётся линк в новой записи
 а если линксоздаётся с указанием на запись то сражу в указаной запис создаётся линк на запись в которой создан линк, между пропертис и хеадером.
+понятно обеснил идею?
+какие функции предложишь изменить? и как?
+**** 
+я проверил zetstack--insert-backlink работает как надо
+
+insert: Symbol’s value as variable is void: target-id
+** dezine
+** todo
 *** сделать возможным двигатся в бок
 и быстро перемешатся в боковые ответления
 беквард
@@ -1271,6 +1353,16 @@ git commit -m "add desktop ZZTemacs"
 git status
 git push
 git log
+
+** Update packet
+
+#+begin_src elisp
+(straight-pull-package "zetstack")
+#+end_src
+
+#+begin_src elisp
+(straight-pull-package `zetstack)
+#+end_src
 
 ** aider
 cd ~/Dev/AI/kiro-proj/ZZTemacs;aider_clipboard

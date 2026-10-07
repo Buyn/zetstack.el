@@ -318,6 +318,26 @@ Zettel node using =zetstack--create-new=, and surgically splice it
         (when filepath
           (funcall open-fn filepath))))))
 
+(defun zetstack--insert-backlink (target-id source-id)
+  "Insert a zlink backlink pointing to SOURCE-ID inside the card identified by TARGET-ID.
+The link text (description) is automatically derived from the source card's clean title."
+  (let* ((source-file (zetstack--find-file-by-id source-id))
+         (target-file (zetstack--find-file-by-id target-id))
+         (source-title (if source-file
+                           (zetstack--get-clean-title source-file)
+                           "Untitled")))
+    (when target-file
+      (with-current-buffer (find-file-noselect target-file)
+        (save-excursion
+          (goto-char (point-min))
+          ;; Jump past property drawer if it exists, otherwise start at top
+          (if (re-search-forward "^:END:" nil t)
+              (forward-line 1)
+              (goto-char (point-min)))
+          ;; Insert the backlink zlink right before the first headline
+          (insert (format "[[zlink:%s][Backlink: %s]]\n" source-id source-title))
+          (save-buffer))))))
+
 ;;;###autoload
 (defun zetstack-create-next ()
   "Create a new Zettel node linked as a next of the current stack node."
@@ -424,17 +444,25 @@ node immediately BEFORE it."
 
 ;;;###autoload
 (defun zetstack-add-link ()
-  "Select an existing Zetstack via Ivy and insert an ID link at point."
+  "Select an existing Zetstack via Ivy, insert an ID link at point,
+and automatically create a reciprocal backlink in the target card."
   (interactive)
-  (let* ((files (zetstack--files-alist)))
+  (let* ((files (zetstack--files-alist))
+         (source-id (zetstack--current-id)))
     (if (null files)
         (message "No Zetstack files found in directory!")
       (let* ((selected (completing-read "Link Zetstack: " files nil t))
              (filepath (cdr (assoc selected files))))
         (when filepath
-          (let ((id (zetstack--extract-id-from-file filepath)))
-            (if id
-                (insert (format "[[zlink:%s][%s]]" id selected))
+          (let ((target-id (zetstack--extract-id-from-file filepath)))
+            (if target-id
+                (progn
+                  ;; 1. Insert forward link at point in current buffer
+                  (insert (format "[[zlink:%s][%s]]" target-id selected))
+                  ;; 2. Create reciprocal backlink if we have a valid source ID
+                  (when source-id
+                    (zetstack--insert-backlink target-id source-id))
+                  (message "Linked to [%s] and created backlink." target-id))
               (message "Error: Could not resolve a valid 15-digit ID for file: %s" filepath))))))))
 
 ;;;###autoload
@@ -446,27 +474,32 @@ Automatically mints a 15-digit timestamp ID and formats a clean zlink."
   (let* ((desc (or description (read-string "Enter Stub Description: ")))
          (timestamp (format-time-string "%Y%m%dT%H%M%S"))
          (clean-desc (replace-regexp-in-string "[^a-zA-Z0-9-_]+" "-" (string-trim desc))))
-    (insert (format "[[zlink:%s][Stub: %s]]" timestamp desc))
+    (insert (format "[[zlink:%s][%s]]" timestamp desc))
     (message "Minted gateway stub ID [%s] with description: %s" timestamp desc)))
 
 ;;;###autoload
 (defun zetstack-open-link-at-point (id)
   "Custom link opener handling zlinks by ID prefix.
 Scans the directory for the full filename starting with ID, and opens it.
-If missing, extracts the link's description text directly from point."
+If missing, extracts the link's description text, creates the file,
+and inserts a backlink from the calling note if applicable."
   (let* ((matching-files (directory-files zetstack-directory t (concat "^" id)))
-         (target-file (car matching-files)))
+         (target-file (car matching-files))
+         (source-id (zetstack--current-id)))
     (if (and target-file (file-exists-p target-file))
         (find-file target-file)
-      ;; Extract description directly from the current line's zlink syntax
-      (let* ((line-text (thing-at-point 'line t))
-             (title (if (and line-text (string-match (format "\\[\\[zlink:%s\\]\\[\\([^]]+\\)\\]\\]" id) line-text))
-                        (match-string 1 line-text)
-                      "Untitled Stub")))
-        (when (y-or-n-p (format "Stub node [%s] ('%s') has no file on disk. Create it? " id title))
-          (let* ((new-buf (zetstack--create-new id title)))
-            (switch-to-buffer new-buf)
-            (message "Minted stub node [%s] with title: %s" id title)))))))
+        ;; Extract description directly from the current line's zlink syntax
+        (let* ((line-text (thing-at-point 'line t))
+              (title (if (and line-text (string-match (format "\\[\\[zlink:%s\\]\\[\\([^]]+\\)\\]\\]" id) line-text))
+                          (match-string 1 line-text)
+                        "Untitled Stub")))
+          (when (y-or-n-p (format "Stub node [%s] ('%s') has no file on disk. Create it? " id title))
+            (let* ((new-buf (zetstack--create-new id title)))
+              (switch-to-buffer new-buf)
+              ;; If created from another note, invoke the backlink creator
+              (when source-id
+                (zetstack--insert-backlink id source-id))
+              (message "Minted stub node [%s] with title: %s and backlink." id title)))))))
 
 ;;;###autoload
 (defun zetstack-remove-current-file ()
