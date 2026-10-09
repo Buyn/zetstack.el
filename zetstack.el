@@ -1,4 +1,5 @@
-;;; zetstack.el --- A lean, double-linked Zettelkasten stack on Org properties -*- lexical-binding: t; -*-
+;;; zetstack.el --- A lean, double-linked Zettelkasten stack on Org properties
+;;; -*- lexical-binding: nil; -*-
 
 ;; Author: Max & Acid Burn
 ;; Version: 3.0.0
